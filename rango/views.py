@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -20,15 +22,20 @@ def index(request):
     context_dict['boldmessage'] = 'Crunchy, creamy, cookie, candy, cupcake!'
     context_dict['categories'] = category_list
     context_dict['pages'] = page_list
-    # Render the response and send it back!
-    return render(request, 'rango/index.html', context=context_dict)
+    visitor_cookie_handler(request)
+    response = render(request, "rango/index.html", context=context_dict)
+
+    return response
 
 
 def about(request):
     print(request.method)
     print(request.user)
     context_dict = {'boldmessage': 'Lingrui'}
-    return render(request, 'rango/about.html', context=context_dict)
+    visitor_cookie_handler(request)
+    context_dict['visits'] = request.session["visits"]
+    response = render(request, "rango/about.html", context=context_dict)
+    return response
 
 
 def show_category(request, category_name_slug):
@@ -58,6 +65,7 @@ def show_category(request, category_name_slug):
     # Go render the response and return it to the client.
     return render(request, 'rango/category.html', context=context_dict)
 
+
 @login_required
 def add_category(request):
     form = CategoryForm()
@@ -69,6 +77,7 @@ def add_category(request):
         else:
             print(form.errors)
     return render(request, 'rango/add_category.html', {"form": form})
+
 
 @login_required
 def add_page(request, category_name_slug):
@@ -154,3 +163,26 @@ def restricted(request):
 def user_logout(request):
     logout(request)
     return redirect(reverse('rango:index'))
+
+
+def get_server_side_cookie(request, cookie, default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
+
+
+def visitor_cookie_handler(request):
+    visits = int(get_server_side_cookie(request, 'visits', '1'))
+    last_visit_cookie =  get_server_side_cookie(request,'last_visit',str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
+    print(datetime.now())
+    print(last_visit_time)
+    if (datetime.now() - last_visit_time).days > 0:
+        print((datetime.now() - last_visit_time).seconds)
+        visits = visits + 1
+        request.session['last_visit'] = str(datetime.now())
+    else:
+        print("i am here")
+        request.session['last_visit'] = str(datetime.now())
+    request.session['visits'] = visits
